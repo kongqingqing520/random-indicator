@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#F4F2EE">
+<meta name="robots" content="noindex,nofollow">
+<title>随机指示器 · 大字版</title>
+<style>
+  html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#F4F2EE;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+
+  body{
+    color:#3A3D42;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue","Noto Sans CJK SC","Microsoft YaHei",sans-serif;
+    -webkit-user-select:none;user-select:none;
+    -webkit-text-size-adjust:100%;
+  }
+
+  /* ---------- 全屏展示区 ---------- */
+  .stage{
+    position:fixed;left:0;top:0;right:0;bottom:0;
+    display:-webkit-box;display:-webkit-flex;display:flex;
+    -webkit-box-orient:vertical;-webkit-flex-direction:column;flex-direction:column;
+    -webkit-box-align:center;-webkit-align-items:center;align-items:center;
+    -webkit-box-pack:center;-webkit-justify-content:center;justify-content:center;
+    padding:12px 14px;
+    padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 12px);
+    cursor:pointer;
+  }
+
+  /* 顶边进度线 */
+  .track{
+    position:fixed;top:0;left:0;right:0;height:4px;
+    background:rgba(0,0,0,.05);z-index:5;pointer-events:none;
+  }
+  .track i{
+    display:block;height:100%;width:100%;background:#7C8C86;
+    -webkit-transform-origin:left center;transform-origin:left center;
+    -webkit-transform:scaleX(1);transform:scaleX(1);
+  }
+
+  /* 大字区 */
+  .big{ font-weight:700; line-height:.9; }
+
+  #arrowBox{
+    width:300px;height:300px;
+    width:62vmin;height:62vmin;
+    color:#7C8C86;
+    -webkit-transform-origin:center center;transform-origin:center center;
+    -webkit-transition:-webkit-transform .2s cubic-bezier(.2,.9,.3,1.05);
+    transition:transform .2s cubic-bezier(.2,.9,.3,1.05);
+  }
+  #arrowBox svg{display:block;width:100%;height:100%;}
+
+  #bigLetter{
+    font-family:Georgia,"Times New Roman","Songti SC",serif;
+    font-size:300px;line-height:1;
+    font-size:62vmin;
+    color:#3A3D42;text-align:center;white-space:nowrap;
+    -webkit-transition:-webkit-transform .12s ease;transition:transform .12s ease;
+  }
+  .pop{ -webkit-transform:scale(1.09); transform:scale(1.09); }
+
+  .sub{
+    margin-top:22px;
+    font-size:18px;font-weight:600;letter-spacing:.22em;
+    color:#9A9D9F;text-align:center;
+    min-height:1.3em;
+  }
+
+  .paused-tag{
+    position:fixed;left:50%;bottom:22px;
+    bottom:calc(env(safe-area-inset-bottom) + 22px);
+    margin-left:-70px;width:140px;text-align:center;
+    font-size:12.5px;letter-spacing:.1em;color:#B8B5AF;
+    opacity:0;filter:alpha(opacity=0);
+    -webkit-transition:opacity .25s;transition:opacity .25s;
+    pointer-events:none;
+  }
+  .paused-tag.show{opacity:1;filter:alpha(opacity=100);}
+
+  /* ---------- 抽屉入口 ---------- */
+  .fab{
+    position:fixed;right:14px;bottom:14px;
+    bottom:calc(env(safe-area-inset-bottom) + 14px);
+    width:44px;height:44px;border-radius:50%;
+    border:1px solid #E3E0DA;background:rgba(255,255,255,.86);
+    color:#8A8D93;font-size:20px;line-height:1;
+    display:-webkit-box;display:-webkit-flex;display:flex;
+    -webkit-box-align:center;-webkit-align-items:center;align-items:center;
+    -webkit-box-pack:center;-webkit-justify-content:center;justify-content:center;
+    cursor:pointer;padding:0;font-family:inherit;z-index:12;
+    -webkit-transition:opacity .25s;transition:opacity .25s;
+  }
+  .fab.hide{opacity:0;pointer-events:none;}
+
+  /* ---------- 底部抽屉 ---------- */
+  .mask{
+    position:fixed;left:0;top:0;right:0;bottom:0;
+    background:rgba(40,40,40,.18);
+    opacity:0;filter:alpha(opacity=0);pointer-events:none;
+    -webkit-transition:opacity .24s;transition:opacity .24s;z-index:20;
+  }
+  .mask.show{opacity:1;filter:alpha(opacity=100);pointer-events:auto;}
+
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:21;
+    background:#FFFFFF;border-radius:22px 22px 0 0;
+    box-shadow:0 -6px 28px rgba(50,50,50,.14);
+    padding:16px 18px 18px;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 18px);
+    -webkit-transform:translateY(110%);transform:translateY(110%);
+    -webkit-transition:-webkit-transform .28s cubic-bezier(.3,.8,.3,1);
+    transition:transform .28s cubic-bezier(.3,.8,.3,1);
+  }
+  .sheet.show{ -webkit-transform:translateY(0); transform:translateY(0); }
+
+  .grab{width:38px;height:4px;border-radius:2px;background:#E0DDD7;margin:0 auto 14px;}
+
+  .tabs{
+    display:-webkit-box;display:-webkit-flex;display:flex;
+    background:#EAE7E1;border-radius:13px;padding:4px;
+  }
+  .tabs button{
+    -webkit-box-flex:1;-webkit-flex:1;flex:1;
+    border:0;background:transparent;border-radius:10px;
+    padding:11px 6px;font-size:15px;font-weight:600;color:#9A9D9F;
+    cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none;
+  }
+  .tabs button + button{ margin-left:4px; }
+  .tabs button.active{background:#FFFFFF;color:#3A3D42;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+
+  .row{
+    display:-webkit-box;display:-webkit-flex;display:flex;
+    -webkit-box-align:center;-webkit-align-items:center;align-items:center;
+    margin-top:14px;
+  }
+  .row-label{font-size:13px;color:#9A9D9F;font-weight:600;white-space:nowrap;letter-spacing:.06em;margin-right:12px;}
+  .seg{ display:-webkit-box;display:-webkit-flex;display:flex; -webkit-box-flex:1;-webkit-flex:1;flex:1; }
+  .seg button{
+    -webkit-box-flex:1;-webkit-flex:1;flex:1;
+    border:1px solid #E3E0DA;background:#FFFFFF;border-radius:11px;
+    padding:11px 0;font-size:14.5px;font-weight:600;color:#9A9D9F;
+    cursor:pointer;font-family:inherit;-webkit-appearance:none;appearance:none;
+  }
+  .seg button + button{ margin-left:8px; }
+  .seg button.active{background:#7C8C86;border-color:#7C8C86;color:#FFFFFF;}
+
+  .acts{ display:-webkit-box;display:-webkit-flex;display:flex; margin-top:12px; }
+  .acts button{
+    -webkit-box-flex:1;-webkit-flex:1;flex:1;
+    border:0;border-radius:14px;padding:15px 0;
+    font-size:16px;font-weight:700;letter-spacing:.05em;font-family:inherit;
+    cursor:pointer;background:#7C8C86;color:#FFFFFF;
+    -webkit-appearance:none;appearance:none;
+  }
+  .acts button + button{ margin-left:9px; }
+  .acts button.mini{font-size:13.5px;font-weight:600;background:#EDF0EE;color:#7C8C86;padding:15px 0;}
+  .acts button.mini.on{background:#7C8C86;color:#FFFFFF;}
+
+  /* 轻提示 */
+  .toast{
+    position:fixed;left:50%;bottom:96px;
+    bottom:calc(env(safe-area-inset-bottom) + 96px);
+    margin-left:-110px;width:220px;text-align:center;
+    background:rgba(58,61,66,.92);color:#FFFFFF;
+    font-size:13.5px;letter-spacing:.04em;
+    padding:10px 0;border-radius:20px;
+    opacity:0;filter:alpha(opacity=0);pointer-events:none;
+    -webkit-transition:opacity .24s;transition:opacity .24s;z-index:30;
+  }
+  .toast.show{opacity:1;filter:alpha(opacity=100);}
+</style>
+</head>
+<body>
+
+<div class="track"><i id="bar"></i></div>
+
+<div class="stage" id="stage">
+  <div class="big" id="arrowBox">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <polygon points="50,6 80,46 58,46 58,94 42,94 42,46 20,46"
+               fill="currentColor" stroke="currentColor" stroke-width="5"
+               stroke-linejoin="round" stroke-linecap="round"></polygon>
+    </svg>
+  </div>
+  <div class="big" id="bigLetter" style="display:none;">A</div>
+  <div class="sub" id="sub">准备开始</div>
+</div>
+
+<div class="paused-tag" id="pausedTag">已暂停 · 轻点屏幕继续</div>
+<div class="toast" id="toast"></div>
+
+<button class="fab" id="fab" aria-label="设置">≡</button>
+<div class="mask" id="mask"></div>
+
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="active" data-mode="dir" type="button">方向模式</button>
+    <button data-mode="letter" type="button">字母模式</button>
+  </div>
+
+  <div class="row">
+    <span class="row-label">间隔</span>
+    <div class="seg" id="seg">
+      <button data-ms="500" type="button">0.5s</button>
+      <button class="active" data-ms="1000" type="button">1s</button>
+      <button data-ms="2000" type="button">2s</button>
+    </div>
+  </div>
+
+  <div class="acts">
+    <button id="startBtn" type="button">开始</button>
+  </div>
+  <div class="acts">
+    <button class="mini" id="shareBtn" type="button">分享</button>
+    <button class="mini" id="soundBtn" type="button">音效开</button>
+    <button class="mini" id="resetBtn" type="button">重置</button>
+    <button class="mini" id="fullBtn" type="button">全屏</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var DIRS = [
+    {a:0,   label:'上'},
+    {a:180, label:'下'},
+    {a:270, label:'左'},
+    {a:90,  label:'右'}
+  ];
+  var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  function $(id){ return document.getElementById(id); }
+
+  var stage    = $('stage');
+  var arrowBox = $('arrowBox');
+  var bigLet   = $('bigLetter');
+  var sub      = $('sub');
+  var bar      = $('bar');
+  var pausedTag= $('pausedTag');
+  var toast    = $('toast');
+  var fab      = $('fab');
+  var sheet    = $('sheet');
+  var mask     = $('mask');
+  var startBtn = $('startBtn');
+  var soundBtn = $('soundBtn');
+  var resetBtn = $('resetBtn');
+  var fullBtn  = $('fullBtn');
+  var shareBtn = $('shareBtn');
+
+  var tabBtns = document.querySelectorAll('#tabs button');
+  var segBtns = document.querySelectorAll('#seg button');
+  var i;
+
+  var mode='dir', intervalMs=1000, running=false;
+  var timer=null, rafId=null, nextAt=0, started=false;
+  var soundOn=true, audioCtx=null;
+  var curAngle=0;
+
+  /* ---------- 尺寸自适应（不依赖 CSS min()/clamp()） ---------- */
+  function viewW(){ return document.documentElement.clientWidth  || window.innerWidth  || 360; }
+  function viewH(){ return document.documentElement.clientHeight || window.innerHeight || 640; }
+
+  function fit(){
+    var w=viewW(), h=viewH();
+    // 箭头：正方形容器，保证旋转后仍在屏内
+    var s = Math.min(h*0.60, w*0.92);
+    if(s<120) s=120;
+    arrowBox.style.width  = Math.round(s)+'px';
+    arrowBox.style.height = Math.round(s)+'px';
+    // 字母：按字面高度反算字号
+    var f = Math.min(h*0.60, w*0.88);
+    if(f<100) f=100;
+    bigLet.style.fontSize = Math.round(f)+'px';
+  }
+  fit();
+  window.onresize = fit;
+  window.onorientationchange = function(){ setTimeout(fit, 260); };
+  setTimeout(fit, 120);   // 兼容首次布局未定型的浏览器
+
+  /* ---------- 音效 ---------- */
+  function beep(){
+    if(!soundOn) return;
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx) audioCtx = new AC();
+      if(audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
+      var t=audioCtx.currentTime;
+      var o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type='sine'; o.frequency.value=880;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.09,t+0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+      o.start(t); o.stop(t+0.08);
+    }catch(e){}
+  }
+
+  /* ---------- 取随机 ---------- */
+  var popTimer=null;
+  function pop(el){
+    el.className = el.className.replace(' pop','');
+    void el.offsetWidth;
+    el.className += ' pop';
+    clearTimeout(popTimer);
+    popTimer = setTimeout(function(){ el.className = el.className.replace(' pop',''); }, 130);
+  }
+
+  function rotateTo(target){
+    var cur = ((curAngle % 360) + 360) % 360;
+    var diff = ((target - cur + 540) % 360) - 180;
+    curAngle += diff;
+    arrowBox.style.webkitTransform = 'rotate(' + curAngle + 'deg)';
+    arrowBox.style.transform       = 'rotate(' + curAngle + 'deg)';
+  }
+
+  function tick(){
+    if(mode==='dir'){
+      var d = DIRS[Math.floor(Math.random()*DIRS.length)];
+      rotateTo(d.a);
+      sub.innerHTML = d.label;
+    }else{
+      bigLet.innerHTML = LETTERS[Math.floor(Math.random()*LETTERS.length)];
+      pop(bigLet);
+      sub.innerHTML = '';
+    }
+  }
+
+  /* ---------- 进度线 ---------- */
+  function loop(){
+    if(!running) return;
+    var frac = (nextAt - now()) / intervalMs;
+    if(frac<0) frac=0; if(frac>1) frac=1;
+    bar.style.webkitTransform = 'scaleX(' + frac + ')';
+    bar.style.transform       = 'scaleX(' + frac + ')';
+    rafId = raf(function(){ loop(); });
+  }
+  function now(){
+    return (window.performance && performance.now) ? performance.now() : new Date().getTime();
+  }
+  function raf(fn){
+    return (window.requestAnimationFrame || window.webkitRequestAnimationFrame ||
+            function(f){ return setTimeout(f, 16); })(fn);
+  }
+  function caf(id){
+    (window.cancelAnimationFrame || window.webkitCancelAnimationFrame ||
+     window.clearTimeout)(id);
+  }
+
+  function cycle(){
+    tick(); beep();
+    nextAt = now() + intervalMs;
+    timer = setTimeout(cycle, intervalMs);
+  }
+
+  /* ---------- 启停 ---------- */
+  function start(){
+    if(running) return;
+    if(audioCtx && audioCtx.state==='suspended' && audioCtx.resume) audioCtx.resume();
+    running=true; started=true;
+    startBtn.innerHTML='暂停';
+    pausedTag.className='paused-tag';
+    cycle(); loop();
+  }
+  function stop(){
+    if(!running) return;
+    running=false;
+    clearTimeout(timer); timer=null;
+    caf(rafId); rafId=null;
+    startBtn.innerHTML='开始';
+    bar.style.webkitTransform='scaleX(1)'; bar.style.transform='scaleX(1)';
+    if(started) pausedTag.className='paused-tag show';
+  }
+  function toggle(){ if(running){ stop(); } else { start(); } }
+
+  function reset(){
+    stop(); started=false;
+    pausedTag.className='paused-tag';
+    curAngle = 0;
+    arrowBox.style.webkitTransform='rotate(0deg)';
+    arrowBox.style.transform='rotate(0deg)';
+    bigLet.innerHTML='A';
+    sub.innerHTML='准备开始';
+    bar.style.webkitTransform='scaleX(1)'; bar.style.transform='scaleX(1)';
+    startBtn.innerHTML='开始';
+  }
+
+  /* ---------- 抽屉 ---------- */
+  function openSheet(){ sheet.className='sheet show'; mask.className='mask show'; fab.className='fab hide'; }
+  function closeSheet(){ sheet.className='sheet'; mask.className='mask'; fab.className='fab'; }
+
+  stage.onclick = function(){
+    if(sheet.className.indexOf('show')>=0){ closeSheet(); } else { toggle(); }
+  };
+  fab.onclick = openSheet;
+  mask.onclick = closeSheet;
+
+  /* ---------- 模式 / 间隔 ---------- */
+  function setMode(m){
+    mode = m;
+    for(i=0;i<tabBtns.length;i++){
+      var on = (tabBtns[i].getAttribute('data-mode')===m);
+      tabBtns[i].className = on ? 'active' : '';
+    }
+    arrowBox.style.display = (m==='dir') ? '' : 'none';
+    bigLet.style.display   = (m==='letter') ? '' : 'none';
+    reset();
+    fit();
+  }
+  for(i=0;i<tabBtns.length;i++){
+    (function(btn){
+      btn.onclick = function(){ setMode(btn.getAttribute('data-mode')); };
+    })(tabBtns[i]);
+  }
+  for(i=0;i<segBtns.length;i++){
+    (function(btn){
+      btn.onclick = function(){
+        intervalMs = Number(btn.getAttribute('data-ms'));
+        for(var k=0;k<segBtns.length;k++){
+          segBtns[k].className = (segBtns[k]===btn) ? 'active' : '';
+        }
+        if(running){
+          clearTimeout(timer);
+          nextAt = now() + intervalMs;
+          timer = setTimeout(cycle, intervalMs);
+        }
+      };
+    })(segBtns[i]);
+  }
+
+  startBtn.onclick = toggle;
+  resetBtn.onclick = reset;
+
+  soundBtn.className = 'mini on';
+  soundBtn.onclick = function(){
+    soundOn = !soundOn;
+    soundBtn.innerHTML = soundOn ? '音效开' : '音效关';
+    soundBtn.className = soundOn ? 'mini on' : 'mini';
+  };
+
+  fullBtn.onclick = function(){
+    var el = document.documentElement;
+    var isFull = document.fullscreenElement || document.webkitFullscreenElement;
+    try{
+      if(!isFull){
+        var rq = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen;
+        if(rq) rq.call(el);
+      }else{
+        var ex = document.exitFullscreen || document.webkitExitFullscreen;
+        if(ex) ex.call(document);
+      }
+    }catch(e){}
+  };
+  function onFs(){
+    var isFull = document.fullscreenElement || document.webkitFullscreenElement;
+    fullBtn.innerHTML = isFull ? '退出全屏' : '全屏';
+    setTimeout(fit, 120);
+  }
+  document.addEventListener('fullscreenchange', onFs, false);
+  document.addEventListener('webkitfullscreenchange', onFs, false);
+
+  /* ---------- 分享 ---------- */
+  var toastTimer=null;
+  function showToast(msg){
+    toast.innerHTML = msg;
+    toast.className = 'toast show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.className='toast'; }, 1900);
+  }
+  shareBtn.onclick = function(){
+    var url = location.href;
+    if(!/^https?:/i.test(url)){ showToast('本页未托管，暂时生不成链接'); return; }
+    function copy(){
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(url);
+          showToast('链接已复制');
+          return;
+        }
+      }catch(e){}
+      showToast('请手动复制地址栏链接');
+    }
+    if(navigator.share){
+      try{
+        navigator.share({ title:'随机指示器', text:'随机方向 / 随机字母，点开就能用', url:url })
+          .then(function(){ closeSheet(); })
+          .catch(function(err){
+            if(err && err.name === 'AbortError') return;
+            copy();
+          });
+        return;
+      }catch(e){}
+    }
+    copy();
+  };
+
+  /* ---------- 键盘 ---------- */
+  document.onkeydown = function(e){
+    var k = e.keyCode;
+    if(k === 32){ if(e.preventDefault) e.preventDefault(); toggle(); }
+    else if(k === 82){ reset(); }
+    else if(k === 27){ closeSheet(); }
+  };
+
+  /* ---------- 切走自动暂停 ---------- */
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) stop();
+  }, false);
+})();
+</script>
+</body>
+</html>
